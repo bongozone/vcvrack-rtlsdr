@@ -86,12 +86,10 @@ MyModuleWidget::MyModuleWidget() {
 	setModule(module);
 	box.size = Vec(6 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/MyModule.svg")));
-		addChild(panel);
-	}
+  Panel *panel = new Panel();
+  panel->box.size = box.size;
+  panel->backgroundColor=COLOR_WHITE;
+  addChild(panel);
 
 	addChild(createScrew<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
