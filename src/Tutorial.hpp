@@ -1,5 +1,5 @@
 #include "rack.hpp"
-
+#include "dsp/digital.hpp"
 
 using namespace rack;
 
