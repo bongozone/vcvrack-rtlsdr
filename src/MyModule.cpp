@@ -29,8 +29,6 @@ struct MyModule : Module {
 		NUM_LIGHTS
 	};
 
-	float phase = 0.0;
-	float blinkPhase = 0.0;
 	float triggerPhase = 0.0;
   SchmittTrigger trigger;
   float inputValue = 0.0;
@@ -52,10 +50,6 @@ struct MyModule : Module {
 void MyModule::step() {
 	// Implement a simple sine oscillator
 	float deltaTime = 1.0 / engineGetSampleRate();
-
-	// Compute the sine output
-	float sine = sinf(2 * M_PI * phase);
-	outputs[CV1_OUTPUT].value = 5.0 * sine;
 
 	if (trigger.process(inputs[TRIGGER_INPUT].value)) {
     triggerPhase = 0.0;
