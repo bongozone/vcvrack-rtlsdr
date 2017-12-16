@@ -1,35 +1,41 @@
 #include "Tutorial.hpp"
 
-// I know this is lame http://blog.natekohl.net/making-countof-suck-less/
-#define COUNTOF(arr) (sizeof(arr) / sizeof(arr[0]))
-
 // TODO:
+// generation color strip
 // channel leds turn green when they get a new note and (generation color) when they get an old note
-// generation colors
-// add multiple ranges for BUFF_SIZE for audio rate stuff
-// add log scale for buff size
-// add option to make knob scale by powers of two only?
+// add option to make length scale by: n, n^2, 2^n
 // figure out resize behavior
+// empty state on init?
+// Add trigger input, normalled to step input with led
+// smooth leds
+// add channel trigger and step outs
+// blacken active step on runway
+// add pan and scan for active channels
 
 #define LANES 4
 #define STRIPE_COUNT 16
 #define BUFF_SIZE 16
 #define LED_TIME 0.1
+#define GENERATION_COUNT 1
 
 struct PanAndShift : Module {
+  struct State {
+    float value;
+    NVGcolor color;
+  };
 	enum ParamIds {
     CENTER,
-    WIDTH,
-    CENTER_ATT,
-    WIDTH_ATT,
+    WIDTH = CENTER+2,
+    CENTER_ATT = WIDTH+2,
+    WIDTH_ATT = CENTER_ATT+2,
     LANE_LENGTH,
 		NUM_PARAMS = LANE_LENGTH + LANES
 	};
 	enum InputIds {
 		CV_INPUT,
-    TRIGGER_INPUT,
+    STEP_INPUT,
     WIDTH_INPUT,
-    CENTER_INPUT,
+    CENTER_INPUT = WIDTH_INPUT+2,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -37,60 +43,69 @@ struct PanAndShift : Module {
 		NUM_OUTPUTS = LANE_OUTPUT + LANES
 	};
 	enum LightIds {
-    TRIGGER_LIGHT,
+    STEP_LIGHT,
     LENGTH_LIGHTS,
-    STATE_LIGHTS = LENGTH_LIGHTS+LANES*STRIPE_COUNT,
-    PAN_LIGHTS = STATE_LIGHTS+LANES*STRIPE_COUNT,
+    PAN_LIGHTS = LENGTH_LIGHTS+LANES*STRIPE_COUNT,
 		NUM_LIGHTS = PAN_LIGHTS + LANES
 	};
 
-	float triggerPhase = 0.0;
-  SchmittTrigger trigger;
+	float stepPhase = 0.0;
+  SchmittTrigger stepTrigger;
   float inputValue = 0.0;
   long shiftPositions[LANES];
-  float shift[LANES][BUFF_SIZE];
+  State shift[LANES][BUFF_SIZE];
 
   long laneLengths[LANES];
   bool laneActive[LANES];
+  long stepCount;
 
 	PanAndShift() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-    trigger.setThresholds(0.0, 2.0);
+    stepTrigger.setThresholds(0.0, 2.0);
     for(int lane = 0; lane < LANES; lane++) {
       shiftPositions[lane] = 0;
       laneLengths[lane] = 1;
     }
   }
 	void step() override;
+	float wheel();
+
 
 };
 
 
+float PanAndShift::wheel() {
+  float w = stepCount%(GENERATION_COUNT*BUFF_SIZE)/double(GENERATION_COUNT*BUFF_SIZE);
+  return w;
+}
+
 void PanAndShift::step() {
-	// Implement a simple sine oscillator
 	float deltaTime = 1.0 / engineGetSampleRate();
+
+  bool debug = false;
+  bool stepTriggered = false;
+	if (stepTrigger.process(inputs[STEP_INPUT].value)) {
+    stepPhase = 0.0;
+    debug = true;
+    stepTriggered = true;
+    stepCount++;
+	}
+
 
   for(int lane = 0; lane < LANES; lane++) {
     laneLengths[lane] = 1+long(params[PanAndShift::LANE_LENGTH + lane].value*(BUFF_SIZE-1));
     for(int stripe = 0; stripe < STRIPE_COUNT ; stripe++) {
       int ceiling = stripe*BUFF_SIZE/STRIPE_COUNT + 1;
-      lights[LENGTH_LIGHTS + lane*STRIPE_COUNT + stripe ].value = laneLengths[lane]>=ceiling;
+      bool isActive = stripe == STRIPE_COUNT*shiftPositions[lane]/BUFF_SIZE && (stepPhase < LED_TIME);
+      lights[LENGTH_LIGHTS + lane*STRIPE_COUNT + stripe ].value = laneLengths[lane]>=ceiling && !isActive;
     }
   }
 
-  bool debug = false;
-  bool triggered = false;
-	if (trigger.process(inputs[TRIGGER_INPUT].value)) {
-    triggerPhase = 0.0;
-    //printf("shiftPosition=%d last is=%d value is = %f size is %d\n", shiftPosition,(shiftPosition+3)%(int)COUNTOF(shift),shift[shiftPosition+3%COUNTOF(shift)],(int)COUNTOF(shift));
-    debug = true;
-    triggered = true;
-	}
-
   inputValue = inputs[CV_INPUT].value;
 
-  lights[TRIGGER_LIGHT].value = (triggerPhase < LED_TIME) ? 1.0 : 0.0;
-  triggerPhase += deltaTime;
+  lights[STEP_LIGHT].value = (stepPhase < LED_TIME) ? 1.0 : 0.0;
+  stepPhase += deltaTime;
 
+  /* begin pan and scan */
   float center = params[CENTER].value + params[CENTER_ATT].value * inputs[CENTER_INPUT].value;
   float width = params[WIDTH].value + params[WIDTH_ATT].value * inputs[WIDTH_INPUT].value;
   for(int lane = 0; lane < LANES; lane++) {
@@ -98,15 +113,20 @@ void PanAndShift::step() {
     laneActive[lane] = abs(center - laneVoltage) < width;
     lights[PAN_LIGHTS + lane].value = laneActive[lane];
   }
+  /* end pan and scan */
 
   for(int lane = 0; lane < LANES; lane++) {
-    outputs[LANE_OUTPUT+lane].value = shift[lane][shiftPositions[lane]];
-    if (/*laneActive[lane]==true &&*/ triggered) {
-      shift[lane][shiftPositions[lane]] = laneActive[lane]==true ? inputValue : outputs[LANE_OUTPUT+lane].value;
+    outputs[LANE_OUTPUT+lane].value = shift[lane][shiftPositions[lane]].value;
+    if (/*laneActive[lane]==true &&*/ stepTriggered) {
+      shift[lane][shiftPositions[lane]].value = laneActive[lane]==true ? inputValue : outputs[LANE_OUTPUT+lane].value;
+      if(laneActive[lane]==true) {
+        shift[lane][shiftPositions[lane]].color = nvgHSL(wheel(), 1.0, 0.4);
+      }
       shiftPositions[lane]%=laneLengths[lane];
       shiftPositions[lane]++;
     }
   }
+
 }
 
 PanAndShiftWidget::PanAndShiftWidget() {
@@ -114,7 +134,7 @@ PanAndShiftWidget::PanAndShiftWidget() {
 	setModule(module);
 	box.size = Vec(20 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
-  Panel *panel = new LightPanel();
+  Panel *panel = new DarkPanel();
   panel->box.size = box.size;
   addChild(panel);
 
@@ -123,18 +143,32 @@ PanAndShiftWidget::PanAndShiftWidget() {
 	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createScrew<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-	addInput(createInput<PJ301MPort>(Vec(20, 20), module, PanAndShift::TRIGGER_INPUT));
+	addInput(createInput<PJ301MPort>(Vec(20, 20), module, PanAndShift::STEP_INPUT));
 	addInput(createInput<PJ301MPort>(Vec(20, 50), module, PanAndShift::CV_INPUT));
 
-	addChild(createLight<LargeLight<RedLight>>(Vec(50, 28), module, PanAndShift::TRIGGER_LIGHT));
+	addChild(createLight<LargeLight<RedLight>>(Vec(50, 28), module, PanAndShift::STEP_LIGHT));
 
-  addParam(createParam<RoundHugeBlackKnob>(Vec(80, 20), module, PanAndShift::CENTER, -5.1, 5.1, 0.0));
-	addInput(createInput<PJ301MPort>(Vec(140, 50), module, PanAndShift::CENTER_INPUT));
-  addParam(createParam<RoundSmallBlackKnob>(Vec(140, 20), module, PanAndShift::CENTER_ATT, -1.0, 1.0, 0.0));
+  // Begin top pan-and-scan
+  int panAndScanOriginY = 20;
+  addParam(createParam<RoundHugeBlackKnob>(Vec(80, panAndScanOriginY), module, PanAndShift::CENTER, -5.1, 5.1, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(140, panAndScanOriginY+30), module, PanAndShift::CENTER_INPUT));
+  addParam(createParam<RoundSmallBlackKnob>(Vec(140, panAndScanOriginY), module, PanAndShift::CENTER_ATT, -1.0, 1.0, 0.0));
 
-  addParam(createParam<RoundHugeBlackKnob>(Vec(200, 20), module, PanAndShift::WIDTH, 0.0, 5.1, 0.0));
-	addInput(createInput<PJ301MPort>(Vec(260, 50), module, PanAndShift::WIDTH_INPUT));
-  addParam(createParam<RoundSmallBlackKnob>(Vec(260, 20), module, PanAndShift::WIDTH_ATT, -1.0, 1.0, 0.0));
+  addParam(createParam<RoundHugeBlackKnob>(Vec(200, panAndScanOriginY), module, PanAndShift::WIDTH, 0.0, 5.1, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(260, panAndScanOriginY+30), module, PanAndShift::WIDTH_INPUT));
+  addParam(createParam<RoundSmallBlackKnob>(Vec(260, panAndScanOriginY), module, PanAndShift::WIDTH_ATT, -1.0, 1.0, 0.0));
+  // End top pan-and-scan
+
+  // Begin bottom pan-and-scan
+  panAndScanOriginY+=60;
+  addParam(createParam<RoundHugeBlackKnob>(Vec(80, panAndScanOriginY), module, PanAndShift::CENTER+1, -5.1, 5.1, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(140, panAndScanOriginY+30), module, PanAndShift::CENTER_INPUT+1));
+  addParam(createParam<RoundSmallBlackKnob>(Vec(140, panAndScanOriginY), module, PanAndShift::CENTER_ATT+1, -1.0, 1.0, 0.0));
+
+  addParam(createParam<RoundHugeBlackKnob>(Vec(200, panAndScanOriginY), module, PanAndShift::WIDTH+1, 0.0, 5.1, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(260, panAndScanOriginY+30), module, PanAndShift::WIDTH_INPUT+1));
+  addParam(createParam<RoundSmallBlackKnob>(Vec(260, panAndScanOriginY), module, PanAndShift::WIDTH_ATT+1, -1.0, 1.0, 0.0));
+  // End bottom pan-and-scan
 
   int laneHead = 150;
   for(int lane = 0; lane < LANES; lane++) {
@@ -145,7 +179,6 @@ PanAndShiftWidget::PanAndShiftWidget() {
 
     for(int stripe = 0; stripe < STRIPE_COUNT; stripe++) {
       addChild(createLight<TinyLight<GreenLight>>(Vec(xOffset+20, laneHead + 50 + stripe*8), module, PanAndShift::LENGTH_LIGHTS + (STRIPE_COUNT * lane) + stripe));
-      addChild(createLight<TinyLight<BlueLight>>(Vec(xOffset+40, laneHead + 50 + stripe*8), module, PanAndShift::STATE_LIGHTS + (STRIPE_COUNT * lane) + stripe));
     }
 
     addOutput(createOutput<PJ301MPort>(Vec(x2Offset, laneHead+200), module, PanAndShift::LANE_OUTPUT + lane));
