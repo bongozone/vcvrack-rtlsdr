@@ -11,6 +11,7 @@ extern "C" {
 struct RtlSdr {
 };
 void RtlSdr_init(struct RtlSdr* radio);
+void RtlSdr_end(struct RtlSdr* radio);
 
 #ifdef __cplusplus
 }

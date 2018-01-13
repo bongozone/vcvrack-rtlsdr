@@ -1138,6 +1138,7 @@ static void *output_thread_fn(void *arg)
 			fputc(0, s->file);
 		}
 		samples = samples_now;
+		printf("reached end of output_thread_fn loop");
 	}
 	return 0;
 }
@@ -1285,6 +1286,7 @@ static void *controller_thread_fn(void *arg)
 		optimal_settings(s->freqs[s->freq_now], demod.rate_in);
 		rtlsdr_set_center_freq(dongle.dev, dongle.freq);
 		dongle.mute = BUFFER_DUMP;
+		printf("reached end of controller_thread_fn loop");
 	}
 	return 0;
 }
@@ -1754,17 +1756,70 @@ here be ponies
 
 void RtlSdr_init(struct RtlSdr* radio) {
 	printf("📻 RtlSdr_init\n");
+
 	dongle_init(&dongle);
 	demod_init(&demod);
 	demod_init(&demod2);
 	output_init(&output);
+
 	controller_init(&controller);
+	char* freq = "99.5M";
+	controller.freqs[controller.freq_len] = 99500000;
+	controller.freq_len++;
+	controller.wb_mode = 1;
+	agc_init(&demod);
+
+	demod.mode_demod = &fm_demod;
+	demod.rate_in = 170000;
+	demod.rate_out = 170000;
+	demod.rate_out2 = 32000;
+	output.rate = 32000;
+	demod.custom_atan = 1;
+	//demod.post_downsample = 4;
+	demod.deemph = 1;
+	demod.squelch_level = 0;
+	if (demod.deemph) {
+		demod.deemph_a = (int)round(1.0/((1.0-exp(-1.0/(demod.rate_out * 75e-6)))));
+	}
+
+	sanity_checks();
+	ACTUAL_BUF_LENGTH = lcm_post[demod.post_downsample] * DEFAULT_BUF_LENGTH;
 	dongle.dev_index = verbose_device_search("0");
 
 	if (dongle.dev_index < 0) {
+	}
+	int r = rtlsdr_open(&dongle.dev, (uint32_t)dongle.dev_index);
+	if (r < 0) {
+		fprintf(stderr, "Failed to open rtlsdr device #%d.\n", dongle.dev_index);
 		exit(1);
 	}
+	verbose_auto_gain(dongle.dev);
+	output.filename = "/tmp/vcvrack-rtlsdr.raw";
+	output.file = fopen(output.filename, "wb");
+	if (!output.file) {
+		fprintf(stderr, "Failed to open %s\n", output.filename);
+		//exit(1);
+	}
+
+	/* Reset endpoint before we start reading from it (mandatory) */
+	verbose_reset_buffer(dongle.dev);
+
+	pthread_create(&controller.thread, NULL, controller_thread_fn, (void *)(&controller));
+	usleep(100000);
+	pthread_create(&output.thread, NULL, output_thread_fn, (void *)(&output));
+	pthread_create(&demod.thread, NULL, demod_thread_fn, (void *)(&demod));
+	if (output.lrmix) {
+		pthread_create(&demod2.thread, NULL, demod_thread_fn, (void *)(&demod2));
+	}
+	pthread_create(&dongle.thread, NULL, dongle_thread_fn, (void *)(&dongle));
+
 }
+
+void RtlSdr_end(struct RtlSdr* radio) {
+	printf("📻 RtlSdr_end\n");
+	sighandler(0);
+}
+
 
 #ifdef __cplusplus
 }
