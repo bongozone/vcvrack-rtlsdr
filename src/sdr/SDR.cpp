@@ -18,6 +18,7 @@ struct SDR : Module {
 	RtlSdr radio;
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		RtlSdr_init(&radio);
   }
 	void step() override;
 };

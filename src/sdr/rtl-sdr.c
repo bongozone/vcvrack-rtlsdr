@@ -1,5 +1,7 @@
 #include "rtl-sdr.h"
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 // https://github.com/keenerd/rtl-sdr/blob/master/src/rtl_fm.c
 
 /*
@@ -78,7 +80,7 @@
 #include <libusb.h>
 
 #include "rtl-sdr.h"
-#include "convenience/convenience.h"
+#include "convenience.h"
 
 #define DEFAULT_SAMPLE_RATE		24000
 #define DEFAULT_BUF_LENGTH		(1 * 16384)
@@ -1744,8 +1746,28 @@ int main(int argc, char **argv)
 	return r >= 0 ? r : -r;
 }
 
-void RtlSdr_init(struct RtlSdr* radio) {
+/*
 
+here be ponies
+
+*/
+
+void RtlSdr_init(struct RtlSdr* radio) {
+	printf("📻 RtlSdr_init\n");
+	dongle_init(&dongle);
+	demod_init(&demod);
+	demod_init(&demod2);
+	output_init(&output);
+	controller_init(&controller);
+	dongle.dev_index = verbose_device_search("0");
+
+	if (dongle.dev_index < 0) {
+		exit(1);
+	}
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 // vim: tabstop=8:softtabstop=8:shiftwidth=8:noexpandtab
