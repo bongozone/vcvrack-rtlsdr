@@ -1754,8 +1754,8 @@ here be ponies
 
 */
 
-void RtlSdr_init(struct RtlSdr* radio) {
-	printf("📻 RtlSdr_init\n");
+void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
+	printf("📻 RtlSdr_init at sample rate %d\n", engineSampleRate);
 
 	dongle_init(&dongle);
 	demod_init(&demod);
@@ -1772,8 +1772,8 @@ void RtlSdr_init(struct RtlSdr* radio) {
 	demod.mode_demod = &fm_demod;
 	demod.rate_in = 170000;
 	demod.rate_out = 170000;
-	demod.rate_out2 = 32000;
-	output.rate = 32000;
+	demod.rate_out2 = engineSampleRate;
+	output.rate = engineSampleRate;
 	demod.custom_atan = 1;
 	//demod.post_downsample = 4;
 	demod.deemph = 1;
