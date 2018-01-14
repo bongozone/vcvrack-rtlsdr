@@ -5,6 +5,7 @@
 
 struct SDR : Module {
 	enum ParamIds {
+		TUNE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -20,6 +21,7 @@ struct SDR : Module {
 
 	RtlSdr radio;
 	FILE* file;
+	long currentFreq;
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
   }
@@ -29,6 +31,7 @@ struct SDR : Module {
 	void onSampleRateChange() override;
 	void step() override;
 	void openFile();
+	long getFreq(float);
 };
 
 
@@ -40,7 +43,15 @@ void SDR::step() {
 		printf ("Reading error; count was %d\n",result);
 		fclose(file);
 		openFile();
+		return; // hold off doing anything else until data is flowing (for now)
 	}
+	long freq = getFreq(params[TUNE_PARAM].value);
+
+	if (abs(freq - currentFreq)>10000) {
+			RtlSdr_tune(&radio, freq);
+			currentFreq = freq;
+	}
+
 	float value = 5.0*float(sample)/(float)SHRT_MAX;
 	outputs[SDR::AUDIO_OUT].value = value;
 }
@@ -59,14 +70,17 @@ void SDR::openFile() {
 	}
 }
 
+long SDR::getFreq(float knob) {
+	return int(knob*10000000);
+}
+
 SDRWidget::SDRWidget() {
 	SDR *module = new SDR();
 	setModule(module);
 	box.size = Vec(6 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
-  Panel *panel = new Panel();
+  Panel *panel = new DarkPanel();
   panel->box.size = box.size;
-  panel->backgroundColor=COLOR_BLACK;
   addChild(panel);
 
 	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
@@ -74,5 +88,6 @@ SDRWidget::SDRWidget() {
 	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createScrew<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-	addOutput(createOutput<PJ301MPort>(Vec(50,50), module, SDR::AUDIO_OUT));
+	addParam(createParam<RoundHugeBlackKnob>(Vec(box.size.x/4, 30), module, SDR::TUNE_PARAM, 80.0, 110.0, 90.0));
+	addOutput(createOutput<PJ301MPort>(Vec(50,box.size.y-30), module, SDR::AUDIO_OUT));
 }

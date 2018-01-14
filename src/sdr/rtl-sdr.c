@@ -1283,10 +1283,12 @@ static void *controller_thread_fn(void *arg)
 			continue;}
 		/* hacky hopping */
 		s->freq_now = (s->freq_now + 1) % s->freq_len;
-		optimal_settings(s->freqs[s->freq_now], demod.rate_in);
-		rtlsdr_set_center_freq(dongle.dev, dongle.freq);
+		printf("hopping to %dl\n", s->freqs[s->freq_now]);
+		optimal_settings(s->freqs[s->freq_now]+16000, demod.rate_in);
+		//rtlsdr_set_center_freq(dongle.dev, dongle.freq);
+		//rtlsdr_set_center_freq(dongle.dev, s->freqs[s->freq_now]);
+
 		dongle.mute = BUFFER_DUMP;
-		printf("reached end of controller_thread_fn loop");
 	}
 	return 0;
 }
@@ -1766,6 +1768,8 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	char* freq = "99.5M";
 	controller.freqs[controller.freq_len] = 99500000;
 	controller.freq_len++;
+	controller.freqs[controller.freq_len] = 99500000;
+	controller.freq_len++;
 	controller.wb_mode = 1;
 	agc_init(&demod);
 
@@ -1777,7 +1781,7 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	demod.custom_atan = 1;
 	//demod.post_downsample = 4;
 	demod.deemph = 1;
-	demod.squelch_level = 0;
+	demod.squelch_level = 1;
 	if (demod.deemph) {
 		demod.deemph_a = (int)round(1.0/((1.0-exp(-1.0/(demod.rate_out * 75e-6)))));
 	}
@@ -1819,6 +1823,21 @@ void RtlSdr_end(struct RtlSdr* radio) {
 	printf("📻 RtlSdr_end\n");
 	sighandler(0);
 }
+
+void RtlSdr_tune_thread_fn(long freq) {
+	rtlsdr_set_center_freq(dongle.dev, freq);
+	printf("📻 RtlSdr_tune done %ld\n", freq);
+}
+
+void RtlSdr_tune(struct RtlSdr* radio, long freq) {
+	//printf("📻 RtlSdr_tune to %ld\n", freq);
+	//pthread_t thread;
+	//pthread_create(&thread, NULL, RtlSdr_tune_thread_fn, freq);
+	controller.freqs[0] = freq;
+	controller.freqs[1] = freq;
+	safe_cond_signal(&controller.hop, &controller.hop_m);
+}
+
 
 
 #ifdef __cplusplus
