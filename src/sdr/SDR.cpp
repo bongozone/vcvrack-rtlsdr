@@ -2,13 +2,20 @@
 #include "rtl-sdr.h"
 #include <stdio.h>
 #include <limits.h>
+#define HZ_CEIL 110.0
+#define HZ_FLOOR 80.0
+#define HZ_SPAN (HZ_CEIL-HZ_FLOOR)
+#define HZ_CENTER (HZ_FLOOR+0.5*HZ_SPAN)
+#define MAX_VOLTAGE 5.0
 
 struct SDR : Module {
 	enum ParamIds {
 		TUNE_PARAM,
+		TUNE_ATT,
 		NUM_PARAMS
 	};
 	enum InputIds {
+		TUNE_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -52,11 +59,13 @@ void SDR::step() {
 		openFile();
 		return; // hold off doing anything else until data is flowing (for now)
 	}
-	long freq = getFreq(params[TUNE_PARAM].value);
+	float freq = params[TUNE_PARAM].value;
+	float freqOff = params[TUNE_ATT].value*inputs[TUNE_INPUT].value/MAX_VOLTAGE;
+	long longFreq = getFreq(freq + freqOff) ;// lots of zeros
 
-	if (abs(freq - currentFreq)>10000) {
-			RtlSdr_tune(&radio, freq);
-			currentFreq = freq;
+	if (abs(longFreq - currentFreq)>=1) {
+			RtlSdr_tune(&radio, longFreq);
+			currentFreq = longFreq;
 	}
 
 	float value = 5.0*float(sample)/(float)SHRT_MAX;
@@ -78,7 +87,7 @@ void SDR::openFile() {
 }
 
 long SDR::getFreq(float knob) {
-	return int(knob*10000000);
+	return int(knob*1000000); // float quantities are in millions so this is a million
 }
 
 SDRWidget::SDRWidget() {
@@ -95,6 +104,8 @@ SDRWidget::SDRWidget() {
 	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 	addChild(createScrew<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-	addParam(createParam<RoundHugeBlackKnob>(Vec(box.size.x/4, 30), module, SDR::TUNE_PARAM, 80.0, 110.0, 90.0));
-	addOutput(createOutput<PJ301MPort>(Vec(50,box.size.y-30), module, SDR::AUDIO_OUT));
+	addParam(createParam<RoundHugeBlackKnob>(Vec(box.size.x/4, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+	addParam(createParam<RoundSmallBlackKnob>(Vec(box.size.x/4, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(box.size.x/4, 200), module, SDR::TUNE_INPUT));
+	addOutput(createOutput<PJ301MPort>(Vec(50,box.size.y-50), module, SDR::AUDIO_OUT));
 }
