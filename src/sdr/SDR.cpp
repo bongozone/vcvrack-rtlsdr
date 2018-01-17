@@ -20,10 +20,11 @@ struct SDR : Module {
 	};
 
 	RtlSdr radio;
-	FILE* file;
+	FILE* file = NULL;
 	long currentFreq;
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		radio.filename[0]='\0';
   }
 	~SDR() {
 		RtlSdr_end(&radio);
@@ -36,6 +37,12 @@ struct SDR : Module {
 
 
 void SDR::step() {
+	if(!strlen(radio.filename)) {
+		RtlSdr_init(&radio, (int)engineGetSampleRate());
+	}
+	if(!file) {
+		openFile();
+	}
 	// play -r 32k -t raw -e s -b 16 -c 1 -V1 -
 	static int16_t sample = 0;
 	int result = fread(&sample, sizeof(sample), 1, file);
@@ -57,16 +64,16 @@ void SDR::step() {
 }
 
 void SDR::onSampleRateChange() {
-	RtlSdr_init(&radio, (int)engineGetSampleRate());
-	openFile();
 }
 
 void SDR::openFile() {
-	char* filename = "/tmp/vcvrack-rtlsdr.raw";
-	file = fopen(filename, "r");
+	if(!strlen(radio.filename)) {
+		return;
+	}
+	file = fopen(radio.filename, "r");
 	if (!file) {
-		fprintf(stderr, "Failed to open %s\n", filename);
-		exit(1);
+		fprintf(stderr, "Failed to open %s\n", radio.filename);
+		//exit(1);
 	}
 }
 

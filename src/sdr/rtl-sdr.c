@@ -103,6 +103,7 @@ static uint32_t MINIMUM_RATE = 1000000;
 static int *atan_lut = NULL;
 static int atan_lut_size = 131072; /* 512 KB */
 static int atan_lut_coef = 8;
+const char* output_filename = "/tmp/vcvrack-rtlsdr.raw";
 
 // rewrite as dynamic and thread-safe for multi demod/dongle
 #define SHARED_SIZE 6
@@ -1791,6 +1792,8 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	dongle.dev_index = verbose_device_search("0");
 
 	if (dongle.dev_index < 0) {
+		fprintf(stderr, "Skipping rtl-sdr intiailization since we dont have a device");
+		return;
 	}
 	int r = rtlsdr_open(&dongle.dev, (uint32_t)dongle.dev_index);
 	if (r < 0) {
@@ -1798,7 +1801,7 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 		exit(1);
 	}
 	verbose_auto_gain(dongle.dev);
-	output.filename = "/tmp/vcvrack-rtlsdr.raw";
+	output.filename = output_filename;
 	output.file = fopen(output.filename, "wb");
 	if (!output.file) {
 		fprintf(stderr, "Failed to open %s\n", output.filename);
@@ -1817,6 +1820,7 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	}
 	pthread_create(&dongle.thread, NULL, dongle_thread_fn, (void *)(&dongle));
 
+	strcpy(radio->filename, output.filename); // what could go wrong
 }
 
 void RtlSdr_end(struct RtlSdr* radio) {
@@ -1837,7 +1841,6 @@ void RtlSdr_tune(struct RtlSdr* radio, long freq) {
 	controller.freqs[1] = freq;
 	safe_cond_signal(&controller.hop, &controller.hop_m);
 }
-
 
 
 #ifdef __cplusplus

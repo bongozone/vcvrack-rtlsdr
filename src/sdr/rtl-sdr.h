@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 struct RtlSdr {
+  char filename[100]; // oh boy
 };
 void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate);
 void RtlSdr_end(struct RtlSdr* radio);
