@@ -89,7 +89,7 @@ void SDR::step() {
 			linkedLabel->text = stream.str()+ "M";
 	}
 
-	float value = 5.0*float(sample)/(float)SHRT_MAX;
+	float value = MAX_VOLTAGE*float(sample)/(float)SHRT_MAX;
 	outputs[SDR::AUDIO_OUT].value = value;
 }
 

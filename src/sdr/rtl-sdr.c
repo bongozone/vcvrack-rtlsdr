@@ -1791,7 +1791,7 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	dongle.dev_index = verbose_device_search("0");
 
 	if (dongle.dev_index < 0) {
-		fprintf(stderr, "Skipping rtl-sdr intiailization since we dont have a device");
+		fprintf(stderr, "Skipping rtl-sdr initialization since we dont have a device");
 		return;
 	}
 	int r = rtlsdr_open(&dongle.dev, (uint32_t)dongle.dev_index);
