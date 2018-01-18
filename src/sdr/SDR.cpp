@@ -66,6 +66,7 @@ void SDR::step() {
 	}
 	if(!file) {
 		openFile();
+		return;
 	}
 	// play -r 32k -t raw -e s -b 16 -c 1 -V1 -
 	static int16_t sample = 0;
@@ -97,7 +98,7 @@ void SDR::onSampleRateChange() {
 }
 
 void SDR::openFile() {
-	if(!strlen(radio.filename)) {
+	if (!strlen(radio.filename)) {
 		return;
 	}
 	file = fopen(radio.filename, "r");
