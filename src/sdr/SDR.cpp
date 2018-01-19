@@ -2,6 +2,7 @@
 #include "rtl-sdr.h"
 #include <stdio.h>
 #include <limits.h>
+#include <cstring>
 #include <iomanip> // setprecision
 #include <sstream> // stringstream
 #define HZ_CEIL 110.0
