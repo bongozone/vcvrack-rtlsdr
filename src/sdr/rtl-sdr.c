@@ -78,6 +78,7 @@ extern "C" {
 
 #include <math.h>
 #include <pthread.h>
+#include <pthread/sched.h>
 #include <libusb.h>
 
 #include "rtl-sdr.h"
@@ -1300,7 +1301,9 @@ static void *controller_thread_fn(void *arg)
 			continue;}
 		/* hacky hopping */
 		s->freq_now = (s->freq_now + 1) % s->freq_len;
-		printf("hopping to idx %d -> %dl\n", s->freq_now, s->freqs[s->freq_now]);
+		struct timeval tod;
+		gettimeofday(&tod, NULL);
+		//printf("%lu hopping to idx %ld -> %ld\n", tod.tv_usec, s->freq_now, s->freqs[s->freq_now]);
 		optimal_settings(s->freqs[s->freq_now], demod.rate_in);
 		rtlsdr_set_center_freq(dongle.dev, dongle.freq);
 		//rtlsdr_set_center_freq(dongle.dev, s->freqs[s->freq_now]);
@@ -1726,7 +1729,15 @@ int main(int argc, char **argv)
 	/* Reset endpoint before we start reading from it (mandatory) */
 	verbose_reset_buffer(dongle.dev);
 
-	pthread_create(&controller.thread, NULL, controller_thread_fn, (void *)(&controller));
+	pthread_attr_t attr;
+	pthread_attr_init (&attr);
+	struct sched_param p1;
+	pthread_attr_setinheritsched (&attr, PTHREAD_INHERIT_SCHED);
+	pthread_attr_setschedpolicy (&attr, SCHED_FIFO);
+	p1.sched_priority = 20;
+	pthread_attr_setschedparam (&attr, &p1);
+
+	pthread_create(&controller.thread, &attr, controller_thread_fn, (void *)(&controller));
 	usleep(100000);
 	pthread_create(&output.thread, NULL, output_thread_fn, (void *)(&output));
 	pthread_create(&demod.thread, NULL, demod_thread_fn, (void *)(&demod));
@@ -1854,11 +1865,12 @@ void RtlSdr_tune_thread_fn(long freq) {
 }
 
 void RtlSdr_tune(struct RtlSdr* radio, long freq) {
-	//pthread_t thread;
-	//pthread_create(&thread, NULL, RtlSdr_tune_thread_fn, freq);
 	controller.freqs[0] = freq;
 	controller.freqs[1] = freq;
 	safe_cond_signal(&controller.hop, &controller.hop_m);
+	sched_yield();
+	//pthread_t thread;
+	//pthread_create(&thread, NULL, RtlSdr_tune_thread_fn, freq);
 }
 
 #ifdef __cplusplus
