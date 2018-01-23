@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iomanip> // setprecision
 #include <sstream> // stringstream
+#include "dsp/ringbuffer.hpp"
 #define HZ_CEIL 110.0
 #define HZ_FLOOR 80.0
 #define HZ_SPAN (HZ_CEIL-HZ_FLOOR)
@@ -45,11 +46,13 @@ struct SDR : Module {
 	};
 
 	RtlSdr radio;
-	FILE* file = NULL;
+	rack::RingBuffer<int16_t, 16384> buffer;
 	long currentFreq;
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		radio.filename[0]='\0';
+		buffer.clear();
+		RtlSdr_init(&radio, (int)engineGetSampleRate());
+
   }
 	~SDR() {
 		RtlSdr_end(&radio);
@@ -62,26 +65,36 @@ struct SDR : Module {
 };
 
 void SDR::step() {
-	if(!strlen(radio.filename)) {
-		RtlSdr_init(&radio, (int)engineGetSampleRate());
+
+	if(buffer.size() < 10 ) { // This seems reasonable
+		//printf("📻 ring buffer is getting low (%ld), try mutex\n", buffer.size());
+		int error = pthread_mutex_trylock(radio.rack_mutex);
+		if (error != 0) {
+			if(error==EBUSY) {
+				printf("📻 mutex busy\n");
+			} else {
+				printf("📻 mutex error\n");
+			}
+		} else {
+			if(*(radio.rack_buffer_pos) != 0) {
+				for(int i = 0; i < *(radio.rack_buffer_pos); i++) {
+					if(buffer.full()) {
+						printf("📻 sdr buffer overrun\n");
+						break;
+					}
+					buffer.push(radio.rack_buffer[i]);
+				}
+				//printf("📻 ring buffer consumed %ld, size is now %d\n", *(radio.rack_buffer_pos), buffer.size());
+				*(radio.rack_buffer_pos) = 0;
+			}
+			pthread_mutex_unlock(radio.rack_mutex);
+		}
 	}
-	if(!file) {
-		openFile();
-		return;
-	}
-	// play -r 32k -t raw -e s -b 16 -c 1 -V1 -
-	static int16_t sample = 0;
-	int result = fread(&sample, sizeof(sample), 1, file);
-	if (result != 1) {
-		printf ("Reading error; count was %d\n",result);
-		fclose(file);
-		openFile();
-		return; // hold off doing anything else until data is flowing (for now)
-	}
+
 	float freq = params[TUNE_PARAM].value;
 	float freqOff = params[TUNE_ATT].value*inputs[TUNE_INPUT].value/MAX_VOLTAGE;
 	float freqComputed = freq + freqOff;
-	long longFreq = getFreq(freqComputed) ;// lots of zeros
+	long longFreq = getFreq(freqComputed) ; // lots of zeros
 
 	if (longFreq - currentFreq) {
 			RtlSdr_tune(&radio, longFreq);
@@ -91,22 +104,16 @@ void SDR::step() {
 			linkedLabel->text = stream.str()+ "M";
 	}
 
-	float value = MAX_VOLTAGE*float(sample)/(float)SHRT_MAX;
-	outputs[SDR::AUDIO_OUT].value = value;
+	if(!buffer.empty()) {
+		int16_t sample = buffer.shift();
+		float value = MAX_VOLTAGE*float(sample)/(float)SHRT_MAX;
+		outputs[SDR::AUDIO_OUT].value 	= value;
+	} else {
+		//printf("📻 awaiting buffer\n");
+	}
 }
 
 void SDR::onSampleRateChange() {
-}
-
-void SDR::openFile() {
-	if (!strlen(radio.filename)) {
-		return;
-	}
-	file = fopen(radio.filename, "r");
-	if (!file) {
-		fprintf(stderr, "Failed to open %s\n", radio.filename);
-		//exit(1);
-	}
 }
 
 long SDR::getFreq(float knob) {

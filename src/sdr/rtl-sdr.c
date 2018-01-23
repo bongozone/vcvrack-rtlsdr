@@ -1,4 +1,5 @@
 #include "rtl-sdr.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -103,7 +104,6 @@ static uint32_t MINIMUM_RATE = 1000000;
 static int *atan_lut = NULL;
 static int atan_lut_size = 131072; /* 512 KB */
 static int atan_lut_coef = 8;
-const char* output_filename = "/tmp/vcvrack-rtlsdr.raw";
 
 // rewrite as dynamic and thread-safe for multi demod/dongle
 #define SHARED_SIZE 6
@@ -191,6 +191,9 @@ struct demod_state
 	pthread_cond_t ready;
 	pthread_mutex_t ready_m;
 	struct buffer_bucket *output_target;
+	pthread_mutex_t rack_mutex;
+	int16_t rack_buffer[MAXIMUM_BUF_LENGTH];
+	long rack_buffer_pos;
 };
 
 struct buffer_bucket
@@ -1028,6 +1031,20 @@ static void *demod_thread_fn(void *arg)
 		pthread_rwlock_wrlock(&o->rw);
 		o->buf = d->lowpassed;
 		o->len = d->lp_len;
+		{
+			pthread_mutex_lock(&d->rack_mutex);
+			long size =sizeof(d->rack_buffer[0]);
+			if(d->rack_buffer_pos + d->lp_len > MAXIMUM_BUF_LENGTH/size) {
+				printf("📻 Rack buffer overrun\n");
+			} else {
+				void* dst = &d->rack_buffer;
+				dst += size * d->rack_buffer_pos;
+				//printf("📻 Rack memcpy %ld bytes at sample offset %ld -- to %ld %ld\n", d->lp_len*size, d->rack_buffer_pos, &d->rack_buffer, dst);
+				memcpy(dst, d->lowpassed, d->lp_len*size );
+				d->rack_buffer_pos += d->lp_len;
+			}
+			pthread_mutex_unlock(&d->rack_mutex);
+		}
 		pthread_rwlock_unlock(&o->rw);
 		if (controller.freq_len > 1 && d->squelch_level && \
 		    d->squelch_hits > d->conseq_squelch) {
@@ -1355,6 +1372,8 @@ void demod_init(struct demod_state *s)
 	pthread_rwlock_init(&s->rw, NULL);
 	pthread_cond_init(&s->ready, NULL);
 	pthread_mutex_init(&s->ready_m, NULL);
+	pthread_mutex_init(&s->rack_mutex, NULL);
+	s->rack_buffer_pos = 0;
 	s->output_target = &output.results[0];
 	s->lowpassed = NULL;
 }
@@ -1364,6 +1383,7 @@ void demod_cleanup(struct demod_state *s)
 	pthread_rwlock_destroy(&s->rw);
 	pthread_cond_destroy(&s->ready);
 	pthread_mutex_destroy(&s->ready_m);
+	pthread_mutex_destroy(&s->rack_mutex);
 }
 
 void output_init(struct output_state *s)
@@ -1690,10 +1710,10 @@ int main(int argc, char **argv)
 		_setmode(_fileno(output.file), _O_BINARY);
 #endif
 	} else {
-		output.file = fopen(output.filename, "wb");
+		//output.file = fopen(output.filename, "wb");
 		if (!output.file) {
-			fprintf(stderr, "Failed to open %s\n", output.filename);
-			exit(1);
+			///fprintf(stderr, "Failed to open %s\n", output.filename);
+			//exit(1);
 		}
 	}
 
@@ -1800,7 +1820,6 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 		exit(1);
 	}
 	verbose_auto_gain(dongle.dev);
-	output.filename = output_filename;
 	output.file = fopen(output.filename, "wb");
 	if (!output.file) {
 		fprintf(stderr, "Failed to open %s\n", output.filename);
@@ -1812,14 +1831,16 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 
 	pthread_create(&controller.thread, NULL, controller_thread_fn, (void *)(&controller));
 	usleep(100000);
-	pthread_create(&output.thread, NULL, output_thread_fn, (void *)(&output));
+	//pthread_create(&output.thread, NULL, output_thread_fn, (void *)(&output));
 	pthread_create(&demod.thread, NULL, demod_thread_fn, (void *)(&demod));
 	if (output.lrmix) {
 		pthread_create(&demod2.thread, NULL, demod_thread_fn, (void *)(&demod2));
 	}
 	pthread_create(&dongle.thread, NULL, dongle_thread_fn, (void *)(&dongle));
 
-	strcpy(radio->filename, output.filename); // what could go wrong
+	radio->rack_buffer_pos = &demod.rack_buffer_pos;
+	radio->rack_buffer = &demod.rack_buffer;
+	radio->rack_mutex = &demod.rack_mutex;
 }
 
 void RtlSdr_end(struct RtlSdr* radio) {
@@ -1839,7 +1860,6 @@ void RtlSdr_tune(struct RtlSdr* radio, long freq) {
 	controller.freqs[1] = freq;
 	safe_cond_signal(&controller.hop, &controller.hop_m);
 }
-
 
 #ifdef __cplusplus
 }

@@ -9,7 +9,9 @@ extern "C" {
 #endif
 
 struct RtlSdr {
-  char filename[100]; // oh boy
+  pthread_mutex_t* rack_mutex;
+  int16_t* rack_buffer;
+  long* rack_buffer_pos;
 };
 void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate);
 void RtlSdr_end(struct RtlSdr* radio);
