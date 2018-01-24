@@ -78,7 +78,7 @@ extern "C" {
 
 #include <math.h>
 #include <pthread.h>
-#include <pthread/sched.h>
+#include <sched.h>
 #include <libusb.h>
 
 #include "rtl-sdr.h"
