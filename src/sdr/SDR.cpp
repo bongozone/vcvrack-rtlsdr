@@ -52,7 +52,6 @@ struct SDR : Module {
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		buffer.clear();
 		RtlSdr_init(&radio, (int)engineGetSampleRate());
-
   }
 	~SDR() {
 		RtlSdr_end(&radio);
@@ -65,6 +64,10 @@ struct SDR : Module {
 };
 
 void SDR::step() {
+
+	if (radio.rack_buffer==NULL) {
+		return;
+	}
 
 	if(buffer.size() < 10 ) { // This seems reasonable
 		//printf("📻 ring buffer is getting low (%ld), try mutex\n", buffer.size());

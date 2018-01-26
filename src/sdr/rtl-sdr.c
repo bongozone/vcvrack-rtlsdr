@@ -1790,6 +1790,11 @@ here be ponies
 void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	printf("📻 RtlSdr_init at sample rate %d\n", engineSampleRate);
 
+
+	radio->rack_buffer_pos = 0;
+	radio->rack_buffer = NULL;
+	radio->rack_mutex = NULL;
+
 	dongle_init(&dongle);
 	demod_init(&demod);
 	demod_init(&demod2);
