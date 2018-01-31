@@ -1,5 +1,5 @@
 PKGCONFIG= pkg-config
-PACKAGES= libusb librtlsdr
+PACKAGES= libusb-1.0 librtlsdr
 
 # FLAGS will be passed to both the C and C++ compiler
 
