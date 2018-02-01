@@ -7,19 +7,27 @@ FLAGS += $(shell $(PKGCONFIG) --cflags $(PACKAGES))
 CFLAGS +=
 CXXFLAGS +=
 
-# Careful about linking to libraries, since you can't assume much about the user's environment and library search path.
-# Static libraries are fine.
-LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir libusb-1.0)/libusb-1.0.a
-LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir librtlsdr)/librtlsdr.a
-#LDFLAGS +=-l:libusb-1.0.a -l:librtlsdr.a
-
 # Add .cpp and .c files to the build
 SOURCES = $(wildcard src/*.cpp src/*.c src/*/*.cpp src/*/*.c)
-
 
 # Must include the VCV plugin Makefile framework
 include ../../plugin.mk
 
+ifeq ($(ARCH), lin)
+	NO_STATIC=1
+	#
+	# WARNING: static compilation is broken on Linux
+endif
+
+# Careful about linking to libraries, since you can't assume much about the user's environment and library search path.
+# Static libraries are fine.
+ifneq ($(NO_STATIC), 1)
+	LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir libusb-1.0)/libusb-1.0.a
+	LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir librtlsdr)/librtlsdr.a
+endif
+ifeq ($(NO_STATIC), 1)
+	LDFLAGS +=$(shell $(PKGCONFIG) --libs $(PACKAGES))
+endif
 
 # Convenience target for including files in the distributable release
 DIST_NAME = PulsumQuadratum-rtlsdr
