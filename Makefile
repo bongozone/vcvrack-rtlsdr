@@ -3,13 +3,15 @@ PACKAGES= libusb-1.0 librtlsdr
 
 # FLAGS will be passed to both the C and C++ compiler
 
-FLAGS += $(shell $(PKGCONFIG) --static --cflags $(PACKAGES))
+FLAGS += $(shell $(PKGCONFIG) --cflags $(PACKAGES))
 CFLAGS +=
 CXXFLAGS +=
 
 # Careful about linking to libraries, since you can't assume much about the user's environment and library search path.
 # Static libraries are fine.
-LDFLAGS +=$(shell $(PKGCONFIG) --libs --static $(PACKAGES))
+LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir libusb-1.0)/libusb-1.0.a
+LDFLAGS +=$(shell $(PKGCONFIG) --variable=libdir librtlsdr)/librtlsdr.a
+#LDFLAGS +=-l:libusb-1.0.a -l:librtlsdr.a
 
 # Add .cpp and .c files to the build
 SOURCES = $(wildcard src/*.cpp src/*.c src/*/*.cpp src/*/*.c)
