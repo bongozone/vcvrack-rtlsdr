@@ -3,7 +3,7 @@ cache:
   directories:
     - /tmp/Rack
 before_cache:
-    - rm -fr /tmp/Rack/plugins/sdr
+    - rm -fr /tmp/Rack/plugins/sdr /tmp/Rack/.git
 osx_image: xcode9.2
 os:
   - linux
