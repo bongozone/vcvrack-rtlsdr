@@ -128,14 +128,14 @@ SDRWidget::SDRWidget() {
 	setModule(module);
 	box.size = Vec(6 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
-  Panel *panel = new DarkPanel();
+  Panel *panel = new LightPanel();
   panel->box.size = box.size;
   addChild(panel);
 
-	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, 0)));
-	addChild(createScrew<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-	addChild(createScrew<ScrewBlack>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-	addChild(createScrew<ScrewBlack>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+	addChild(createScrew<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
+	addChild(createScrew<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+	addChild(createScrew<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+	addChild(createScrew<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	{
 		CenteredLabel* const freqLabel = new CenteredLabel;
