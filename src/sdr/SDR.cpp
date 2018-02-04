@@ -31,6 +31,7 @@ struct SDR : Module {
 	enum ParamIds {
 		TUNE_PARAM,
 		TUNE_ATT,
+		QUANT_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -60,6 +61,7 @@ struct SDR : Module {
 	void step() override;
 	void openFile();
 	long getFreq(float);
+	float getMegaFreq(long);
 	MyLabel* linkedLabel;
 };
 
@@ -99,11 +101,31 @@ void SDR::step() {
 	float freqComputed = freq + freqOff;
 	long longFreq = getFreq(freqComputed) ; // lots of zeros
 
+	enum Quantization {HUNDREDK, TENK, NONE};
+  Quantization scale = static_cast<Quantization>(roundf(params[QUANT_PARAM].value));
+	long modulo;
+	switch(scale) {
+		case HUNDREDK:
+			modulo = 100000;
+			break;
+		case TENK:
+			modulo = 10000;
+			break;
+		case NONE:
+			modulo = 1;
+	}
+	long modulus = longFreq%modulo;
+	longFreq -= modulus;
+	if(modulus>=modulo/2) {
+		longFreq+=modulo;
+	}
+
+
 	if (longFreq - currentFreq) {
 			RtlSdr_tune(&radio, longFreq);
 			currentFreq = longFreq;
 			std::stringstream stream;
-			stream << std::fixed << std::setprecision(2) << freqComputed;
+			stream << std::fixed << std::setprecision(3) << getMegaFreq(longFreq);
 			linkedLabel->text = stream.str();
 	}
 
@@ -120,8 +142,14 @@ void SDR::onSampleRateChange() {
 }
 
 long SDR::getFreq(float knob) {
-	return int(knob*1000000); // float quantities are in millions so this is a million
+	return int(knob*1000000.f); // float quantities are in millions so this is a million
 }
+
+float SDR::getMegaFreq(long longFreq) {
+	return float(longFreq)/ 1000000.f; // float quantities are in millions so this is a million
+}
+
+
 
 SDRWidget::SDRWidget() {
 	SDR *module = new SDR();
@@ -162,5 +190,36 @@ SDRWidget::SDRWidget() {
 	addParam(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
 	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
 	addInput(createInput<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), module, SDR::TUNE_INPUT));
+	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
+	{
+		MyLabel* const cLabel = new MyLabel(12);
+		cLabel->box.pos = Vec(16,236/2); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "Stepping";
+		addChild(cLabel);
+	}
+	{
+		MyLabel* const cLabel = new MyLabel(12);
+		cLabel->box.pos = Vec(20,240/2+4); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "none ";
+		addChild(cLabel);
+	}
+	{
+		MyLabel* const cLabel = new MyLabel(12);
+		cLabel->box.pos = Vec(20,240/2+9); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "10 k ";
+		addChild(cLabel);
+	}
+	{
+		MyLabel* const cLabel = new MyLabel(12);
+		cLabel->box.pos = Vec(20,240/2+14); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "100k";
+		addChild(cLabel);
+	}
+
+
 	addOutput(createOutput<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), module, SDR::AUDIO_OUT));
 }
