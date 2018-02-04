@@ -187,7 +187,10 @@ SDRWidget::SDRWidget() {
 		addChild(cLabel);
 	}
 
-	addParam(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+  SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+	knob->maxAngle += 10*M_PI;
+	//knob->sensitivity /= 10.f;
+	addParam(knob);
 	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
 	addInput(createInput<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), module, SDR::TUNE_INPUT));
 	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
