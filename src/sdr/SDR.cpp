@@ -12,16 +12,16 @@
 #define HZ_CENTER (HZ_FLOOR+0.5*HZ_SPAN)
 #define MAX_VOLTAGE 5.0
 
-// cribbed from JW-modules - remove later
-struct CenteredLabel : Widget {
+struct MyLabel : Widget {
 	std::string text;
 	int fontSize;
-	CenteredLabel(int _fontSize = 18) {
+	NVGcolor color = nvgRGB(255,20,20);
+	MyLabel(int _fontSize = 18) {
 		fontSize = _fontSize;
 	}
 	void draw(NVGcontext *vg) override {
-		nvgTextAlign(vg, NVG_ALIGN_CENTER);
-		nvgFillColor(vg, nvgRGB(252,120,111));
+		nvgTextAlign(vg, NVG_ALIGN_CENTER|NVG_ALIGN_BASELINE);
+		nvgFillColor(vg, color);
 		nvgFontSize(vg, fontSize);
 		nvgText(vg, box.pos.x, box.pos.y, text.c_str(), NULL);
 	}
@@ -60,7 +60,7 @@ struct SDR : Module {
 	void step() override;
 	void openFile();
 	long getFreq(float);
-	CenteredLabel* linkedLabel;
+	MyLabel* linkedLabel;
 };
 
 void SDR::step() {
@@ -103,8 +103,8 @@ void SDR::step() {
 			RtlSdr_tune(&radio, longFreq);
 			currentFreq = longFreq;
 			std::stringstream stream;
-			stream << std::fixed << std::setprecision(3) << freqComputed;
-			linkedLabel->text = stream.str()+ "M";
+			stream << std::fixed << std::setprecision(2) << freqComputed;
+			linkedLabel->text = stream.str();
 	}
 
 	if(!buffer.empty()) {
@@ -126,27 +126,41 @@ long SDR::getFreq(float knob) {
 SDRWidget::SDRWidget() {
 	SDR *module = new SDR();
 	setModule(module);
-	box.size = Vec(6 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
+	box.size = Vec(4 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
   Panel *panel = new LightPanel();
   panel->box.size = box.size;
   addChild(panel);
 
-	addChild(createScrew<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+	addChild(createScrew<ScrewSilver>(Vec(0, 0)));
+	addChild(createScrew<ScrewSilver>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	{
-		CenteredLabel* const freqLabel = new CenteredLabel;
-		freqLabel->box.pos = Vec(20, 20);
+		MyLabel* const freqLabel = new MyLabel;
+		freqLabel->box.pos = Vec(box.size.x/4,RACK_GRID_WIDTH*3);  // coordinate system is broken FIXME
 		freqLabel->text = "0";
-		module->linkedLabel  = freqLabel;
+		module->linkedLabel = freqLabel;
 		addChild(freqLabel);
 	}
 
-	addParam(createParam<RoundHugeBlackKnob>(Vec(box.size.x/4, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
-	addParam(createParam<RoundSmallBlackKnob>(Vec(box.size.x/4, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
-	addInput(createInput<PJ301MPort>(Vec(box.size.x/4, 200), module, SDR::TUNE_INPUT));
-	addOutput(createOutput<PJ301MPort>(Vec(50,box.size.y-50), module, SDR::AUDIO_OUT));
+	{
+		MyLabel* const cLabel = new MyLabel(10);
+		cLabel->box.pos = Vec(19,5);  // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "rtl-sdr FM";
+		addChild(cLabel);
+	}
+
+	{
+		MyLabel* const cLabel = new MyLabel(14);
+		cLabel->box.pos = Vec(18,(RACK_GRID_HEIGHT - RACK_GRID_WIDTH/4)/2); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "pq";
+		addChild(cLabel);
+	}
+
+	addParam(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
+	addInput(createInput<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), module, SDR::TUNE_INPUT));
+	addOutput(createOutput<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), module, SDR::AUDIO_OUT));
 }
