@@ -52,7 +52,6 @@ struct SDR : Module {
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		buffer.clear();
-		RtlSdr_init(&radio, (int)engineGetSampleRate());
   }
 	~SDR() {
 		RtlSdr_end(&radio);
@@ -63,9 +62,14 @@ struct SDR : Module {
 	long getFreq(float);
 	float getMegaFreq(long);
 	MyLabel* linkedLabel;
+	long stepCount;
 };
-
 void SDR::step() {
+
+	if (radio.rack_buffer==NULL && stepCount++ % 100000 == 0) {
+		RtlSdr_init(&radio, (int)engineGetSampleRate());
+		return;
+	}
 
 	if (radio.rack_buffer==NULL) {
 		return;
@@ -188,7 +192,7 @@ SDRWidget::SDRWidget() {
 	}
 
   SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
-	knob->maxAngle += 10*M_PI;
+	knob->maxAngle += 10*2*M_PI;
 	//knob->sensitivity /= 10.f;
 	addParam(knob);
 	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));

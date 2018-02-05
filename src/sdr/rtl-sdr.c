@@ -1787,7 +1787,7 @@ here be ponies
 
 */
 
-void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
+int RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	printf("📻 RtlSdr_init at sample rate %d\n", engineSampleRate);
 
 
@@ -1828,25 +1828,20 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 
 	if (dongle.dev_index < 0) {
 		fprintf(stderr, "Skipping rtl-sdr initialization since we dont have a device");
-		return;
+		return -1;
 	}
 	int r = rtlsdr_open(&dongle.dev, (uint32_t)dongle.dev_index);
 	if (r < 0) {
-		fprintf(stderr, "Failed to open rtlsdr device #%d.\n", dongle.dev_index);
-		exit(1);
+		fprintf(stderr, "Failed to open rtlsdr device fff #%d.\n", dongle.dev_index);
+		return r;
 	}
 	verbose_auto_gain(dongle.dev);
-	output.file = fopen(output.filename, "wb");
-	if (!output.file) {
-		fprintf(stderr, "Failed to open %s\n", output.filename);
-		//exit(1);
-	}
 
 	/* Reset endpoint before we start reading from it (mandatory) */
 	verbose_reset_buffer(dongle.dev);
 
 	pthread_create(&controller.thread, NULL, controller_thread_fn, (void *)(&controller));
-	usleep(100000);
+	//usleep(100000);
 	//pthread_create(&output.thread, NULL, output_thread_fn, (void *)(&output));
 	pthread_create(&demod.thread, NULL, demod_thread_fn, (void *)(&demod));
 	if (output.lrmix) {
@@ -1857,11 +1852,29 @@ void RtlSdr_init(struct RtlSdr* radio, int engineSampleRate) {
 	radio->rack_buffer_pos = &demod.rack_buffer_pos;
 	radio->rack_buffer = &demod.rack_buffer;
 	radio->rack_mutex = &demod.rack_mutex;
+	return 0;
 }
 
 void RtlSdr_end(struct RtlSdr* radio) {
 	printf("📻 RtlSdr_end\n");
 	sighandler(0);
+
+		rtlsdr_cancel_async(dongle.dev);
+		pthread_join(dongle.thread, NULL);
+		safe_cond_signal(&demod.ready, &demod.ready_m);
+		pthread_join(demod.thread, NULL);
+		if (output.lrmix) {
+			safe_cond_signal(&demod2.ready, &demod2.ready_m);
+			pthread_join(demod2.thread, NULL);
+		}
+		safe_cond_signal(&controller.hop, &controller.hop_m);
+		pthread_join(controller.thread, NULL);
+
+		//dongle_cleanup(&dongle);
+		demod_cleanup(&demod);
+		controller_cleanup(&controller);
+
+		rtlsdr_close(dongle.dev);
 }
 
 void RtlSdr_tune_thread_fn(long freq) {
