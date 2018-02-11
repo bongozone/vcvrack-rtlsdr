@@ -6,7 +6,7 @@ Plugin *plugin;
 void init(rack::Plugin *p) {
 	plugin = p;
 	// This is the unique identifier for your plugin
-	p->slug = "Pulsum Quadratum SDR";
+	p->slug = "PulsumQuadratum-SDR";
 #ifdef VERSION
 	p->version = TOSTRING(VERSION);
 #endif
