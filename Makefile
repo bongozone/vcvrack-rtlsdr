@@ -1,5 +1,5 @@
 SLUG = PulsumQuadratum-SDR
-VERSION = 0.5.1 # not finished
+VERSION = 0.5.1
 
 PKGCONFIG= pkg-config
 PACKAGES= libusb-1.0 librtlsdr
