@@ -34,5 +34,8 @@ endif
 
 DISTRIBUTABLES += $(wildcard LICENSE*) res
 
+# If RACK_DIR is not defined when calling the Makefile, default to two levels above
+RACK_DIR ?= ../..
+
 # Include the VCV plugin Makefile framework
 include ../../plugin.mk
