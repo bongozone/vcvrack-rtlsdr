@@ -8,7 +8,4 @@ extern Plugin *plugin;
 ////////////////////
 // module widgets
 ////////////////////
-
-struct SDRWidget : ModuleWidget {
-	SDRWidget();
-};
+extern Model *sdrModule;

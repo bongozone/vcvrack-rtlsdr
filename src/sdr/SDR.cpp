@@ -153,19 +153,20 @@ float SDR::getMegaFreq(long longFreq) {
 	return float(longFreq)/ 1000000.f; // float quantities are in millions so this is a million
 }
 
+struct SDRWidget : ModuleWidget {
+	SDRWidget(SDR *module);
+};
 
+SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 
-SDRWidget::SDRWidget() {
-	SDR *module = new SDR();
-	setModule(module);
 	box.size = Vec(4 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
   Panel *panel = new LightPanel();
   panel->box.size = box.size;
   addChild(panel);
 
-	addChild(createScrew<ScrewSilver>(Vec(0, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+	addChild(Widget::create<ScrewSilver>(Vec(0, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	{
 		MyLabel* const freqLabel = new MyLabel;
@@ -191,13 +192,13 @@ SDRWidget::SDRWidget() {
 		addChild(cLabel);
 	}
 
-  SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+  SVGKnob *knob = dynamic_cast<SVGKnob*>(ParamWidget::create<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
 	knob->maxAngle += 10*2*M_PI;
 	//knob->sensitivity /= 10.f;
 	addParam(knob);
-	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
-	addInput(createInput<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), module, SDR::TUNE_INPUT));
-	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
+	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
+	addInput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), Port::INPUT, module, SDR::TUNE_INPUT));
+	addParam(ParamWidget::create<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
 	{
 		MyLabel* const cLabel = new MyLabel(12);
 		cLabel->box.pos = Vec(16,236/2); // coordinate system is broken FIXME
@@ -228,5 +229,9 @@ SDRWidget::SDRWidget() {
 	}
 
 
-	addOutput(createOutput<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), module, SDR::AUDIO_OUT));
+	addOutput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), Port::OUTPUT, module, SDR::AUDIO_OUT));
 }
+
+
+Model *sdrModule = Model::create<SDR, SDRWidget>(
+	"Pulsum Quadratum", "SDRWidget", "rtl-sdr FM Radio Tuner", EXTERNAL_TAG, TUNER_TAG);
