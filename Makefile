@@ -16,7 +16,7 @@ CXXFLAGS +=
 SOURCES = $(wildcard src/*.cpp src/*.c src/*/*.cpp src/*/*.c)
 
 # Must include the VCV plugin Makefile framework
-include ../../arch.mk
+include $(RACK_DIR)/arch.mk
 
 # Careful about linking to libraries, since you can't assume much about the user's environment and library search path.
 # Static libraries are fine.
