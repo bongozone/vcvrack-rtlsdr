@@ -1,6 +1,9 @@
 SLUG = PulsumQuadratum-SDR
 VERSION = 0.6.0
 
+# If RACK_DIR is not defined when calling the Makefile, default to two levels above
+RACK_DIR ?= ../..
+
 PKGCONFIG= pkg-config
 PACKAGES= libusb-1.0 librtlsdr
 
@@ -13,7 +16,7 @@ CXXFLAGS +=
 SOURCES = $(wildcard src/*.cpp src/*.c src/*/*.cpp src/*/*.c)
 
 # Must include the VCV plugin Makefile framework
-include ../../plugin.mk
+include ../../arch.mk
 
 # Careful about linking to libraries, since you can't assume much about the user's environment and library search path.
 # Static libraries are fine.
@@ -33,9 +36,6 @@ ifeq ($(ARCH), win)
 endif
 
 DISTRIBUTABLES += $(wildcard LICENSE*) res
-
-# If RACK_DIR is not defined when calling the Makefile, default to two levels above
-RACK_DIR ?= ../..
 
 # Include the VCV Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk

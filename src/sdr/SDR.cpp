@@ -52,6 +52,7 @@ struct SDR : Module {
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		buffer.clear();
+		RtlSdr_init(&radio, (int)engineGetSampleRate());
   }
 	~SDR() {
 		RtlSdr_end(&radio);
