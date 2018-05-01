@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <cstring>
+#include <iostream>
 #include <iomanip> // setprecision
 #include <sstream> // stringstream
 #include "dsp/ringbuffer.hpp"
@@ -130,7 +131,8 @@ void SDR::step() {
 			RtlSdr_tune(&radio, longFreq);
 			currentFreq = longFreq;
 			std::stringstream stream;
-			stream << std::fixed << std::setprecision(3) << getMegaFreq(longFreq);
+			stream << std::fixed << std::setprecision(3) << std::setw(7) << getMegaFreq(longFreq);
+			std::cout << std::setw(7) << std::fixed << std::setprecision(3) << getMegaFreq(longFreq) << "\n";
 			linkedLabel->text = stream.str();
 	}
 
@@ -186,10 +188,17 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 	}
 
 	{
-		MyLabel* const cLabel = new MyLabel(14);
-		cLabel->box.pos = Vec(18,(RACK_GRID_HEIGHT - RACK_GRID_WIDTH/4)/2); // coordinate system is broken FIXME
+		MyLabel* const cLabel = new MyLabel(9);
+		cLabel->box.pos = Vec(14.5,(RACK_GRID_HEIGHT - RACK_GRID_WIDTH/1.5)/2); // coordinate system is broken FIXME
 		cLabel->color = nvgRGB(0,0,0);
-		cLabel->text = "pq";
+		cLabel->text = "pulsum";
+		addChild(cLabel);
+	}
+	{
+		MyLabel* const cLabel = new MyLabel(9);
+		cLabel->box.pos = Vec(18,(RACK_GRID_HEIGHT - RACK_GRID_WIDTH/5)/2); // coordinate system is broken FIXME
+		cLabel->color = nvgRGB(0,0,0);
+		cLabel->text = "quadratum";
 		addChild(cLabel);
 	}
 
