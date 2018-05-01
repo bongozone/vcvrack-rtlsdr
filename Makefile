@@ -1,5 +1,5 @@
 SLUG = PulsumQuadratum-SDR
-VERSION ?= 0.6.0dev
+VERSION ?= 0.6.0
 
 # If RACK_DIR is not defined when calling the Makefile, default to two levels above
 RACK_DIR ?= ../..
