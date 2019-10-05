@@ -243,5 +243,4 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 }
 
 
-Model *sdrModule = Model::create<SDR, SDRWidget>(
-	"Pulsum Quadratum", "SDRWidget", "rtl-sdr FM Radio Tuner", EXTERNAL_TAG, TUNER_TAG);
+Model *sdrModule = Model::create<SDR, SDRWidget>("SDRWidget");

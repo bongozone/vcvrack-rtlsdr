@@ -1,0 +1,25 @@
+{
+  "slug": "PulsumQuadratum-SDR",
+  "name": "Pulsum Quadratum",
+  "version": "1.0.0",
+  "license": " GPL-2.0-only",
+  "brand": "PulsumQuadratum-SDR",
+  "author": "bongozone",
+  "authorEmail": "",
+  "authorUrl": "https://bongo.zone/",
+  "pluginUrl": "https://bongo.zone/modules/rtl-sdr",
+  "manualUrl": "https://bongo.zone/modules/rtl-sdr",
+  "sourceUrl": "https://github.com/bongozone/vcvrack-rtlsdr",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "SDRWidget",
+      "name": "SDRWidget",
+      "description": "rtl-sdr FM Radio Tuner",
+      "tags": [
+        "Tuner"
+      ]
+    }
+  ]
+}
