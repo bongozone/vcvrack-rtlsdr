@@ -6,7 +6,6 @@
 #include <iostream>
 #include <iomanip> // setprecision
 #include <sstream> // stringstream
-#include "dsp/ringbuffer.hpp"
 #define HZ_CEIL 110.0
 #define HZ_FLOOR 80.0
 #define HZ_SPAN (HZ_CEIL-HZ_FLOOR)
@@ -164,18 +163,21 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 
 	box.size = Vec(4 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT);
 
-  Panel *panel = new LightPanel();
+  // Panel *panel = new LightPanel();
+  SVGPanel *panel = new SVGPanel();
   panel->box.size = box.size;
+  panel->setBackground(APP->window->loadSvg(asset::plugin(pluginInstance, "res/sdr.svg")));
   addChild(panel);
 
-	addChild(Widget::create<ScrewSilver>(Vec(0, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+	addChild(createWidget<ScrewSilver>(Vec(0, 0)));
+	addChild(createWidget<ScrewSilver>(Vec(0, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
 	{
 		MyLabel* const freqLabel = new MyLabel;
 		freqLabel->box.pos = Vec(box.size.x/4,RACK_GRID_WIDTH*3);  // coordinate system is broken FIXME
 		freqLabel->text = "0";
-		module->linkedLabel = freqLabel;
+    if(module)
+      module->linkedLabel = freqLabel;
 		addChild(freqLabel);
 	}
 
@@ -202,13 +204,13 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 		addChild(cLabel);
 	}
 
-  SVGKnob *knob = dynamic_cast<SVGKnob*>(ParamWidget::create<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+  SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
 	knob->maxAngle += 10*2*M_PI;
 	knob->speed /= 20.f;
 	addParam(knob);
-	addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
-	addInput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), Port::INPUT, module, SDR::TUNE_INPUT));
-	addParam(ParamWidget::create<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
+	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
+	addInput(createPort<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), PortWidget::INPUT, module, SDR::TUNE_INPUT));
+	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
 	{
 		MyLabel* const cLabel = new MyLabel(12);
 		cLabel->box.pos = Vec(16,236/2); // coordinate system is broken FIXME
@@ -239,8 +241,8 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 	}
 
 
-	addOutput(Port::create<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), Port::OUTPUT, module, SDR::AUDIO_OUT));
+	addOutput(createPort<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), PortWidget::OUTPUT, module, SDR::AUDIO_OUT));
 }
 
 
-Model *sdrModule = Model::create<SDR, SDRWidget>("SDRWidget");
+Model *sdrModule = createModel<SDR, SDRWidget>("SDRWidget");

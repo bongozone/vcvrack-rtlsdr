@@ -1,9 +1,9 @@
 #include "PQ.hpp"
 
-// The plugin-wide instance of the Plugin class
-Plugin *plugin;
+// The pluginInstance-wide instance of the Plugin class
+Plugin *pluginInstance;
 
 void init(rack::Plugin *p) {
-	plugin = p;
+	pluginInstance = p;
 	p->addModel(sdrModule);
 }
