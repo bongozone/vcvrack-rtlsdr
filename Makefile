@@ -5,7 +5,7 @@ PKGCONFIG= pkg-config
 PACKAGES= libusb-1.0 librtlsdr
 
 # FLAGS will be passed to both the C and C++ compiler
-FLAGS += $(shell $(PKGCONFIG) --cflags $(PACKAGES)) -w
+FLAGS += $(shell $(PKGCONFIG) --cflags $(PACKAGES))
 CFLAGS +=
 CXXFLAGS +=
 

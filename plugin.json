@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "license": " GPL-2.0-only",
   "brand": "PulsumQuadratum-SDR",
-  "author": "bongozone",
+  "author": "Jon Williams",
   "authorEmail": "",
   "authorUrl": "https://bongo.zone/",
   "pluginUrl": "https://bongo.zone/modules/rtl-sdr",
