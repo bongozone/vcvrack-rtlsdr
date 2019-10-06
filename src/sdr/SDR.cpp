@@ -19,11 +19,11 @@ struct MyLabel : Widget {
 	MyLabel(int _fontSize = 18) {
 		fontSize = _fontSize;
 	}
-	void draw(NVGcontext *vg) override {
-		nvgTextAlign(vg, NVG_ALIGN_CENTER|NVG_ALIGN_BASELINE);
-		nvgFillColor(vg, color);
-		nvgFontSize(vg, fontSize);
-		nvgText(vg, box.pos.x, box.pos.y, text.c_str(), NULL);
+	void draw(const DrawArgs& args) override {
+		nvgTextAlign(args.vg, NVG_ALIGN_CENTER|NVG_ALIGN_BASELINE);
+		nvgFillColor(args.vg, color);
+		nvgFontSize(args.vg, fontSize);
+		nvgText(args.vg, box.pos.x, box.pos.y, text.c_str(), NULL);
 	}
 };
 
@@ -47,28 +47,31 @@ struct SDR : Module {
 	};
 
 	RtlSdr radio;
-	rack::RingBuffer<int16_t, 16384> buffer;
+	rack::dsp::RingBuffer<int16_t, 16384> buffer;
 	long currentFreq;
 
 	SDR() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		buffer.clear();
-		RtlSdr_init(&radio, (int)engineGetSampleRate());
+		RtlSdr_init(&radio, (int)APP->engine->getSampleRate());
+    configParam(SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER, "");
+    configParam(SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0, "");
+    configParam(SDR::QUANT_PARAM, 0.0, 2.0, 0.0, "");
   }
 	~SDR() {
 		RtlSdr_end(&radio);
 	}
 	void onSampleRateChange() override;
-	void step() override;
+	void process(const ProcessArgs& args) override;
 	void openFile();
 	long getFreq(float);
 	float getMegaFreq(long);
 	MyLabel* linkedLabel;
 	long stepCount;
 };
-void SDR::step() {
+void SDR::process(const ProcessArgs& args) {
 
 	if (radio.rack_buffer==NULL && stepCount++ % 100000 == 0) {
-		RtlSdr_init(&radio, (int)engineGetSampleRate());
+		RtlSdr_init(&radio, (int)args.sampleRate);
 		return;
 	}
 
@@ -101,13 +104,13 @@ void SDR::step() {
 		}
 	}
 
-	float freq = params[TUNE_PARAM].value;
-	float freqOff = params[TUNE_ATT].value*inputs[TUNE_INPUT].value/MAX_VOLTAGE;
+	float freq = params[TUNE_PARAM].getValue();
+	float freqOff = params[TUNE_ATT].getValue()*inputs[TUNE_INPUT].getVoltage()/MAX_VOLTAGE;
 	float freqComputed = freq + freqOff;
 	long longFreq = getFreq(freqComputed) ; // lots of zeros
 
 	enum Quantization {HUNDREDK, TENK, NONE};
-  Quantization scale = static_cast<Quantization>(roundf(params[QUANT_PARAM].value));
+  Quantization scale = static_cast<Quantization>(roundf(params[QUANT_PARAM].getValue()));
 	long modulo;
 	switch(scale) {
 		case HUNDREDK:
@@ -204,13 +207,13 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 		addChild(cLabel);
 	}
 
-  SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM, HZ_FLOOR, HZ_CEIL, HZ_CENTER));
+  SVGKnob *knob = dynamic_cast<SVGKnob*>(createParam<RoundHugeBlackKnob>(Vec(RACK_GRID_WIDTH/6, 100), module, SDR::TUNE_PARAM));
 	knob->maxAngle += 10*2*M_PI;
 	knob->speed /= 20.f;
 	addParam(knob);
-	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT, -HZ_SPAN/2.0, +HZ_SPAN/2.0, 0.0));
-	addInput(createPort<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), PortWidget::INPUT, module, SDR::TUNE_INPUT));
-	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM, 0.0, 2.0, 0.0));
+	addParam(createParam<RoundSmallBlackKnob>(Vec(RACK_GRID_WIDTH, 170), module, SDR::TUNE_ATT));
+	addInput(createInput<PJ301MPort>(Vec(RACK_GRID_WIDTH, 200), module, SDR::TUNE_INPUT));
+	addParam(createParam<CKSSThree>(Vec(RACK_GRID_WIDTH/2, 240), module, SDR::QUANT_PARAM));
 	{
 		MyLabel* const cLabel = new MyLabel(12);
 		cLabel->box.pos = Vec(16,236/2); // coordinate system is broken FIXME
@@ -241,7 +244,7 @@ SDRWidget::SDRWidget(SDR *module) : ModuleWidget(module) {
 	}
 
 
-	addOutput(createPort<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), PortWidget::OUTPUT, module, SDR::AUDIO_OUT));
+	addOutput(createOutput<PJ301MPort>(Vec(RACK_GRID_WIDTH, box.size.y-3*RACK_GRID_WIDTH), module, SDR::AUDIO_OUT));
 }
 
 
